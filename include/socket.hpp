@@ -114,6 +114,7 @@ struct sipp_socket {
     struct socketbuf *ss_in; /* Buffered input. */
     size_t ss_msglen;        /* Is there a complete SIP message waiting, and if so how big? */
     struct socketbuf *ss_out; /* Buffered output. */
+    int ss_local_port; /* local bound port */
 #ifdef USE_SCTP
     int sctpstate;
 #endif

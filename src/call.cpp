@@ -1109,9 +1109,11 @@ int call::send_raw(const char * msg, int index, int len)
     }
 
     if(rc < 0) {
-        computeStat(CStat::E_CALL_FAILED);
-        computeStat(CStat::E_FAILED_CANNOT_SEND_MSG);
-        delete this;
+        if (reset_close) {
+            computeStat(CStat::E_CALL_FAILED);
+            computeStat(CStat::E_FAILED_CANNOT_SEND_MSG);
+            delete this;
+        }
     }
 
     return rc; /* OK */
@@ -2962,8 +2964,14 @@ bool call::process_incoming(char * msg, struct sockaddr_storage *src)
     txn[0] = '\0';
 
     /* Check that we have a To:-header */
-    if (!get_header(msg, "To:", false)[0] && !process_unexpected(msg)) {
-        return false;
+    if (!get_header(msg, "To:", false)[0]) {
+        //AlexR
+        process_unexpected(msg);
+        if (default_behaviors & DEFAULT_BEHAVIOR_ABORTUNEXP) {
+            return false;
+         } else {
+            return true;
+        }
     }
 
     if ((transport == T_UDP) && (retrans_enabled)) {
@@ -3038,8 +3046,12 @@ bool call::process_incoming(char * msg, struct sockaddr_storage *src)
 
         reply_code = get_reply_code(msg);
         if(!reply_code) {
-            if (!process_unexpected(msg)) {
-                return false; // Call aborted by unexpected message handling
+            //Alexr
+            process_unexpected(msg);
+            if (default_behaviors & DEFAULT_BEHAVIOR_ABORTUNEXP) {
+                return false;
+             } else {
+                return true;
             }
 #ifdef PCAPPLAY
         } else if ((hasMedia == 1) && *(strstr(msg, "\r\n\r\n")+4) != '\0') {
@@ -3200,15 +3212,23 @@ bool call::process_incoming(char * msg, struct sockaddr_storage *src)
                 paused_until = 0;
                 return run();
             } else {
-                if (!process_unexpected(msg)) {
-                    return false; // Call aborted by unexpected message handling
+                //Alexr
+                process_unexpected(msg);
+                if (default_behaviors & DEFAULT_BEHAVIOR_ABORTUNEXP) {
+                    return false; // Call aborted by unexpected message handlin
+                 } else {
+                    return true;
                 }
             }
         } else {
             T_AutoMode L_case;
             if ((L_case = checkAutomaticResponseMode(request)) == 0) {
-                if (!process_unexpected(msg)) {
-                    return false; // Call aborted by unexpected message handling
+                //Alexr
+                process_unexpected(msg);
+                if (default_behaviors & DEFAULT_BEHAVIOR_ABORTUNEXP) {
+                    return false; // Call aborted by unexpected message handlin
+                 } else {
+                    return true;
                 }
             } else {
                 // call aborted by automatic response mode if needed

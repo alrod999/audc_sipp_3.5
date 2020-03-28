@@ -1540,7 +1540,11 @@ static int sipp_do_connect_socket(struct sipp_socket* socket)
         } else {
             (_RCAST(struct sockaddr_in *, &local_without_port))->sin_port = htons(0);
         }
-        sipp_bind_socket(socket, &local_without_port, &port);
+        ret = sipp_bind_socket(socket, &local_without_port, &port);
+        if (ret) {
+            ERROR("Fail to bind socket! Error '%s'",strerror(errno));
+        }
+        socket->ss_local_port = port;
     }
 #ifdef USE_SCTP
     if (socket->ss_transport == T_SCTP) {
@@ -1821,9 +1825,11 @@ int enter_congestion(struct sipp_socket *socket, int again)
     }
     socket->ss_congested = true;
 
-    TRACE_MSG("Problem %s on socket  %d and poll_idx  is %d \n",
+    TRACE_MSG("Problem %s on socket  %d (local port %d) and poll_idx  is %d \n",
               again == EWOULDBLOCK ? "EWOULDBLOCK" : "EAGAIN",
-              socket->ss_fd, socket->ss_pollidx);
+              socket->ss_fd,
+              socket->ss_local_port,
+              socket->ss_pollidx);
 #ifdef HAVE_EPOLL
     epollfiles[socket->ss_pollidx].events |= EPOLLOUT;
     int rc = epoll_ctl(epollfd, EPOLL_CTL_MOD, socket->ss_fd, &epollfiles[socket->ss_pollidx]);
@@ -1945,9 +1951,22 @@ int read_error(struct sipp_socket *socket, int ret)
                 /* The socket was closed "cleanly", but we may have calls that need to
                  * be destroyed.  Also, if these calls are not complete, and attempt to
                  * send again we may "ressurect" the socket by reconnecting it.*/
-                sipp_socket_invalidate(socket);
-                if (reset_close) {
-                    close_calls(socket);
+                if (errno == EINPROGRESS) {
+                    //The socket is nonblocking and the connection cannot be completed
+                } else {
+                    WARNING("Remote peer shutdown the TCP (port %d) socket: %s",
+                            socket->ss_local_port,
+                            errstring);
+                    if (reset_close) {
+                        sipp_socket_invalidate(socket);
+                        close_calls(socket);
+                    }
+                    else
+                    {
+                        sipp_abort_connection(socket->ss_fd);
+                        socket->ss_fd = -1;
+                        sockets_pending_reset.insert(socket);
+                    }
                 }
             }
             return 0;
@@ -1959,9 +1978,13 @@ int read_error(struct sipp_socket *socket, int ret)
 
         nb_net_recv_errors++;
         if (reconnect_allowed()) {
-            WARNING("Error on TCP connection, remote peer probably closed the socket: %s", errstring);
+            WARNING("Error on TCP connection, remote peer probably closed the socket on port %d: %s",
+                    socket->ss_local_port,
+                    errstring);
         } else {
-            ERROR("Error on TCP connection, remote peer probably closed the socket: %s", errstring);
+            ERROR("Error on TCP connection, remote peer probably closed the socket on port %d: %s",
+                  socket->ss_local_port,
+                  errstring);
         }
         return -1;
     }
@@ -2330,8 +2353,12 @@ int write_socket(struct sipp_socket *socket, const char *buffer, ssize_t len, in
         rc = flush_socket(socket);
         TRACE_MSG("Attempted socket flush returned %d\r\n", rc);
         if (rc < 0) {
-            if ((errno == EWOULDBLOCK) && (flags & WS_BUFFER)) {
+            if (((errno == EWOULDBLOCK) && (flags & WS_BUFFER)) || reset_close) {
                 buffer_write(socket, buffer, len, dest);
+                if (reset_close) {
+                    //The socket is closed but will be re-connected, simulate EWOULDBLOCK
+                    errno = EWOULDBLOCK;
+                }
                 return len;
             } else {
                 return rc;
@@ -2363,9 +2390,13 @@ int write_socket(struct sipp_socket *socket, const char *buffer, ssize_t len, in
         }
 
     } else if (rc <= 0) {
-        if ((errno == EWOULDBLOCK) && (flags & WS_BUFFER)) {
+        if (((errno == EWOULDBLOCK) && (flags & WS_BUFFER)) || reset_close) {
             buffer_write(socket, buffer, len, dest);
             enter_congestion(socket, errno);
+            if (reset_close) {
+                //The socket is closed but will be re-connected, simulate EWOULDBLOCK
+                errno = EWOULDBLOCK;
+            }
             return len;
         }
         if (useMessagef == 1) {
@@ -2422,7 +2453,7 @@ void reset_connection(struct sipp_socket *socket)
         WARNING_NO("Could not reconnect TCP socket");
         close_calls(socket);
     } else {
-        WARNING("Socket required a reconnection.");
+        WARNING("Socket reconnection successful! socket local port %d.", socket->ss_local_port);
     }
 }
 

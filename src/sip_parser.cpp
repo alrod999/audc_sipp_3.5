@@ -199,6 +199,7 @@ char * get_header(const char* message, const char * name, bool content)
         }
         /* We didn't find the header, even in its short form. */
         if (short_form) {
+            //WARNING("the header '%s' is not found, even in its short form",name);
             free(src_orig);
             return last_header;
         }
