@@ -1574,7 +1574,10 @@ static int sipp_do_connect_socket(struct sipp_socket* socket)
 #ifdef USE_OPENSSL
         int err;
         if ((err = SSL_connect(socket->ss_ssl)) < 0) {
-            ERROR("Error in SSL connection: %s\n", sip_tls_error_string(socket->ss_ssl, err));
+            WARNING("Error in SSL connection: %s\n", sip_tls_error_string(socket->ss_ssl, err));
+            //Alexr: Simulate connect error to allow re-connect afterwards
+            errno = ENETUNREACH;
+            return err;
         }
 #else
         ERROR("You need to compile SIPp with TLS support");
