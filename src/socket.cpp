@@ -1482,7 +1482,7 @@ int sipp_bind_socket(struct sipp_socket *socket, struct sockaddr_storage *saddr,
         }
     }
 #endif
-
+    socket->ss_local_port = *port;
     if (socket->ss_ipv6) {
         len = sizeof(struct sockaddr_in6);
     } else {
@@ -2766,7 +2766,7 @@ int open_connections()
                 if (sipp_bind_socket(sock, &server_sockaddr, NULL)) {
                     ERROR_NO("Unable to bind server socket");
                 }
-
+                sock->ss_local_port = local_port;
                 map_perip_fd[peripaddr] = sock;
             }
         }
@@ -2801,6 +2801,7 @@ int open_connections()
                 sa_loc.sin_port = htons(local_port);
                 sipp_bind_socket(tcp_multiplex, (struct sockaddr_storage*)&sa_loc, NULL);
             }
+            tcp_multiplex->ss_local_port = local_port;
         }
 
         if (sipp_connect_socket(tcp_multiplex, &remote_sockaddr)) {

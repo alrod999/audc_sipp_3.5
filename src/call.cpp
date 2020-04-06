@@ -2171,6 +2171,10 @@ char* call::createSendingMessage(SendingMessage *src, int P_index, char *msg_buf
             int port;
             if((transport == T_UDP) && (multisocket) && (sendMode != MODE_SERVER)) {
                 port = call_port;
+            } else if(((transport == T_TCP) || (transport == T_TLS)) && \
+                      (this->call_socket) && (this->call_socket->ss_local_port) && \
+                      (multisocket)) {
+                port = this->call_socket->ss_local_port;
             } else {
                 port =  local_port;
             }
