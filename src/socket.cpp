@@ -1573,10 +1573,14 @@ static int sipp_do_connect_socket(struct sipp_socket* socket)
     if (socket->ss_transport == T_TLS) {
 #ifdef USE_OPENSSL
         int err;
+        int tls_err_code;
         if ((err = SSL_connect(socket->ss_ssl)) < 0) {
-            WARNING("Error in TLS connection (TCP local port %d): %s\n",
+            tls_err_code = SSL_get_error(socket->ss_ssl,err);
+            WARNING("Error in TLS connection (TCP local port %d): %s (code %d)\n",
                     socket->ss_local_port,
-                    sip_tls_error_string(socket->ss_ssl, err));
+                    sip_tls_error_string(socket->ss_ssl, err),
+                    tls_err_code
+                    );
             //Alexr: Simulate connect error to allow re-connect afterwards
             errno = ENETUNREACH;
             return err;
