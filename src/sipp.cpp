@@ -376,6 +376,7 @@ struct sipp_option options_table[] = {
     {"ringbuffer_size", "How large should error, message, shortmessage and calldebug files be before they get rotated?", SIPP_OPTION_LONG_LONG, &ringbuffer_size, 1},
     {"max_log_size", "What is the limit for error, message, shortmessage and calldebug file sizes.", SIPP_OPTION_LONG_LONG, &max_log_size, 1},
 
+    {"pause_freeze", "Freeze execution at current state when 'p' (pause) command executed (default false). Without this flag the open calls will be completed", SIPP_OPTION_SETFLAG, &pause_freeze, 1},
 };
 
 static struct sipp_option *find_option(const char* option) {

@@ -139,7 +139,9 @@ static unsigned int get_tdm_map_number()
 unsigned int call::wake()
 {
     unsigned int wake = 0;
-
+    if (pause_freeze && paused && !quitting) {
+        return UINT_MAX;
+    }
     if (zombie) {
         return wake;
     }

@@ -89,7 +89,11 @@ void print_bottom_line(FILE *f, int last)
     } else if(quitting) {
         fprintf(f,"------- Waiting for active calls to end. Press [q] again to force exit. -------" SIPP_ENDL );
     } else if(paused) {
-        fprintf(f,"----------------- Traffic Paused - Press [p] again to resume ------------------" SIPP_ENDL );
+        if (pause_freeze) {
+            fprintf(f,"------- Traffic Paused (pause_freeze) - Press [p] again to resume -------------" SIPP_ENDL );
+        }  else {
+            fprintf(f,"----------------- Traffic Paused - Press [p] again to resume ------------------" SIPP_ENDL );
+        }
     } else if(cpu_max) {
         fprintf(f,"-------------------------------- CPU CONGESTED ---------------------------------" SIPP_ENDL);
     } else if(outbound_congestion) {

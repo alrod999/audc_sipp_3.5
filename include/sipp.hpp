@@ -273,6 +273,7 @@ extern char               remote_ip_escaped[42];  /* with [brackets] in case of 
 extern int                remote_port             _DEFVAL(DEFAULT_PORT);
 extern unsigned int       pid                     _DEFVAL(0);
 extern bool               print_all_responses     _DEFVAL(false);
+extern bool               pause_freeze     _DEFVAL(false);
 extern unsigned long      stop_after              _DEFVAL(0xffffffff);
 extern int                quitting                _DEFVAL(0);
 extern int                interrupt               _DEFVAL(0);
